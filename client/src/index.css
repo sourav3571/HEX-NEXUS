@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: theme(colors.orange.600);
+  --color-primary-light: theme(colors.orange.500);
+  --color-bg: theme(colors.gray.50);
+  --color-secondary: theme(colors.orange.100);
+  --color-secondary-light: theme(colors.orange.50);
+
+  --text-md: 14px;
+}
+
+* {
+  font-family: "Poppins", sans-serif;
+  transition-property: all;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function)
+      /* cubic-bezier(0.4, 0, 0.2, 1) */
+    );
+  transition-duration: var(--tw-duration, var(--default-transition-duration)
+      /* 150ms */
+    );
+}
+
+
+button {
+  @apply cursor-pointer
+}
+
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-sm {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-secondary) transparent;
+}
+
+.scrollbar-sm::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-sm::-webkit-scrollbar-thumb {
+  background-color: var(--color-secondary);
+  border-radius: 2px;
+}
+
+.scrollbar-sm::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-sm::-webkit-scrollbar-corner {
+  background: transparent;
+}
