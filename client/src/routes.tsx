@@ -1,10 +1,11 @@
 import type { JSX } from "react";
 import Home from "./components/pages/Home";
-import { Brain, Compass, HomeIcon, ImageDown, MessageCircle, Navigation } from "lucide-react";
+import { Brain, Compass, HomeIcon, ImageDown, MessageCircle} from "lucide-react";
 import AppLayout from "./components/ui/Layout/AppLayout";
 import Community from "./components/pages/Community";
 import Landing from "./components/pages/Landing";
-
+import Learn from "./components/pages/Learn";
+import Support from "./components/pages/Support";
 type Route = {
   path: string;
   element: JSX.Element;
@@ -12,7 +13,7 @@ type Route = {
   name?: string;
   icon?: JSX.Element;
   activeFor?: string[];
-}[]
+}[];
 
 export const routes: Route = [
   {
@@ -48,16 +49,16 @@ export const routes: Route = [
     icon: <Compass size={16} />,
   },
   {
-    path: "/learn",
-    element: (
-      <AppLayout>
-        <Community />
-      </AppLayout>
-    ),
-    menu: true,
-    name: "Learn Kolam",
-    icon: <Brain size={16} />,
-  },
+  path: "/learn",
+  element: (
+    <AppLayout>
+      <Learn />
+    </AppLayout>
+  ),
+  menu: true,
+  name: "Learn Kolam",
+  icon: <Brain size={16} />,
+},
   {
     path: "/my-kolams",
     element: (
@@ -73,11 +74,11 @@ export const routes: Route = [
     path: "/support",
     element: (
       <AppLayout>
-        <Community />
+        <Support />
       </AppLayout>
     ),
     menu: true,
     name: "Support",
     icon: <MessageCircle size={16} />,
   }
-]
+];
