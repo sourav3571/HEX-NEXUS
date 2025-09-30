@@ -207,12 +207,12 @@ export default function Home() {
             } else if (operation.type === 'render') {
               return (
                 <MessageBox key={operation.id} width="fit-content" text={`Here's the kolam rendered from analysis:`}>
-                  {/* FIXED: Removed aspect-square and added w-full max-h-[600px] */}
-                  <div className="w-full max-h-[600px] rounded-lg border border-gray-200">
+                  {/* MODIFIED: Removed max-w-xl to allow the image to take up maximum available width */}
+                  <div className="w-full rounded-lg border border-gray-200 bg-white p-4">
                     <img 
                       src={operation.data.renderedImage?.startsWith("http") ? operation.data.renderedImage : `${import.meta.env.VITE_API_URL}/${operation.data.renderedImage}`}
                       alt="Rendered kolam"
-                      className="w-full h-full object-contain"
+                      className="w-full h-auto object-contain" // Use h-auto and object-contain to ensure full image fit
                     />
                   </div>
                 </MessageBox>
@@ -220,13 +220,14 @@ export default function Home() {
             } else if (operation.type === 'recreate') {
               return (
                 <MessageBox key={operation.id} width="fit-content" text={`Here's your recreated symmetric kolam:`}>
-                  <> 
-                    {/* FIXED: Removed aspect-square and added w-full max-h-[600px] */}
-                    <div className="w-full max-h-[600px] rounded-lg border border-gray-200">
+                  {/* MODIFIED: Better container for recreated image (Keeping max-w-xl here as it's a generated output, but updating the image style) */}
+                  <div className="flex flex-col gap-4 max-w-xl"> 
+                    {/* CHANGED: Removed fixed height and added responsive sizing with max height */}
+                    <div className="w-full rounded-lg border border-gray-200 bg-white p-4">
                       <img
                         src={operation.data.recreatedImage?.startsWith("http") ? operation.data.recreatedImage : `${import.meta.env.VITE_API_URL}/${operation.data.recreatedImage}`}
                         alt="Recreated kolam"
-                        className="object-contain w-full h-full"
+                        className="w-full h-auto max-h-[400px] object-contain"
                       />
                     </div>
                     <div className="mt-4">
@@ -238,7 +239,7 @@ export default function Home() {
                         📥 Download Recreated Kolam
                       </a>
                     </div>
-                  </>
+                  </div>
                 </MessageBox>
               );
             }
@@ -250,11 +251,13 @@ export default function Home() {
       {/* sidebar */}
       <div className="col-span-1 border-l border-gray-200 p-5">
         <input type="file" accept="image/*" ref={inputRef} onChange={handleFileChange} className="hidden" />
+        
+        {/* ORIGINAL IMAGE PREVIEW FIX: Removed aspect-square to allow flexible size */}
         <div
-          className="w-full aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition overflow-hidden"
+          className="w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition overflow-hidden"
           onClick={() => inputRef.current?.click()}
         >
-          {preview ? <img src={preview} alt="Preview" className="object-cover w-full h-full" /> : (
+          {preview ? <img src={preview} alt="Preview" className="object-contain w-full h-full" /> : (
             <>
               <span className="text-4xl text-gray-500">+</span>
               <p className="text-gray-600 mt-2">Upload Photo</p>
