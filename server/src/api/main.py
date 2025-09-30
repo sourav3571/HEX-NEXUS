@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from src.api.auth import router as auth_router
 import uvicorn
 import cv2
 import tempfile
@@ -27,6 +28,9 @@ app.add_middleware(
 app.mount("/img", StaticFiles(directory="img"), name="img")
 app.mount("/imgdata", StaticFiles(directory="imgdata"), name="imgdata")
 
+# ✅ Include auth router for signup/login endpoints
+app.include_router(auth_router, prefix="/api/auth")
+
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -41,42 +45,32 @@ def create_kolam(data: KolamRequest):
 
 @app.post("/api/know-your-kolam")
 async def know_your_kolam(file: UploadFile = File(...)):
-    # Save uploaded file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     tmp.write(await file.read())
     tmp.close()
     
     try:
-        # Load and process image
         img = cv2.imread(tmp.name, cv2.IMREAD_COLOR)
         if img is None:
             return {"error": "Could not load image"}
         
         h, w = img.shape[:2]
         
-        # Step 1: Detect dots in the image
         detected_dots = detect_dots_in_image(img)
-        
-        # Convert to Dot objects
         dots = [Dot(x=float(x), y=float(y)) for x, y in detected_dots]
-        
-        # Step 2: Detect lines and curves
         lines, curves = detect_lines_and_curves(img, detected_dots)
         
-        # Combine all paths
         all_paths = []
         for line in lines:
             all_paths.append(line)
         for curve in curves:
             all_paths.append(curve)
         
-        # Step 3: Return formatted response that matches KolamRequest schema
         result = {
             "dots": [{"x": dot.x, "y": dot.y} for dot in dots],
             "paths": []
         }
         
-        # Format paths according to schema
         for path in all_paths:
             if isinstance(path, LinePath):
                 result["paths"].append({

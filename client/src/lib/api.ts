@@ -11,10 +11,10 @@ export const API_ROUTES = {
     RENDER: `${BASE_URL}/create_kolam`,
     PREDICT: `${BASE_URL}/predict`,
     SEARCH: `${BASE_URL}/search`,
+    RECREATE: `${BASE_URL}/recreate`, // Add this line
   }
 } as const;
 
 export const localKey = {
   token: `store-app-token`,
 }
-

@@ -18,7 +18,8 @@ export default function Landing() {
         <div className="hidden md:flex space-x-8">
           <a href="#" className="text-orange-700 hover:text-orange-500 font-medium">About</a>
           <a href="#" className="text-orange-700 hover:text-orange-500 font-medium">Features</a>
-          <a href="#" className="text-orange-700 hover:text-orange-500 font-medium">Gallery</a>
+          <button onClick={() => navigate("/login")} className="text-orange-700 hover:text-orange-500 font-medium">Login</button>
+          <button onClick={() => navigate("/signup")} className="text-orange-700 hover:text-orange-500 font-medium">Sign Up</button>
           <a href="#" className="text-orange-700 hover:text-orange-500 font-medium">Contact</a>
         </div>
 
@@ -46,10 +47,6 @@ export default function Landing() {
             <button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-full font-medium text-lg transition duration-300 shadow-lg"
               onClick={() => navigate('/home')}>
               Create Your Kolam
-            </button>
-            <button className="border-2 border-orange-500 text-orange-500 hover:bg-orange-50 px-8 py-4 rounded-full font-medium text-lg transition duration-300"
-              onClick={() => navigate('/home')}>
-              Explore Gallery
             </button>
           </div>
         </div>
