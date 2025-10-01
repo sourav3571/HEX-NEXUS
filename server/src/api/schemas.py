@@ -1,23 +1,25 @@
-from pydantic import BaseModel
-from typing import Literal, Union
+# FILE: server/src/api/schemas.py
+from pydantic import BaseModel, EmailStr
 
-class Dot(BaseModel):
-    x: float
-    y: float
+# Schema for creating a user (expects a password)
+class UserCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
 
-class LinePath(BaseModel):
-    type: Literal["line"] = "line"
-    p1: Dot
-    p2: Dot
+# Schema for reading a user (never includes the password)
+class User(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    class Config:
+        from_attributes = True # Allows Pydantic to read data from ORM models
 
-class CurvePath(BaseModel):
-    type: Literal["curve"] = "curve"
-    p1: Dot
-    ctrl: Dot
-    p2: Dot
+# Schema for the login response token
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
-Path = Union[LinePath, CurvePath]
-
-class KolamRequest(BaseModel):
-    dots: list[Dot]
-    paths: list[Path]
+# Schema for data inside the token
+class TokenData(BaseModel):
+    email: str | None = None
