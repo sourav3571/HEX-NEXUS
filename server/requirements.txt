@@ -57,3 +57,5 @@ passlib
 sqlalchemy
 bcrypt
 psycopg2-binary
+pydantic-settings==0.4.3
+SQLAlchemy==2.0.32

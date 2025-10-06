@@ -23,15 +23,12 @@ from typing import Union
 import tempfile
 import hashlib
 
-app = FastAPI(title="Kolam AI server", version="0.1.0")
+from fastapi import APIRouter, Depends
+from . import schemas, models
+from .security import get_current_user
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# The variable MUST be named 'user_router' to match the import in main.py
+user_router = APIRouter()
 
 os.makedirs("img", exist_ok=True) 
 
@@ -351,3 +348,8 @@ async def search_similar(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# This is a secure endpoint that gets the currently authenticated user's details.
+# It requires a valid token to be sent in the request header.
+@user_router.get("/me", response_model=schemas.User)
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
