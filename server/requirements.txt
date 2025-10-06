@@ -53,3 +53,7 @@ typing-inspection==0.4.1
 typing_extensions==4.15.0
 uvicorn==0.36.0
 wcwidth==0.2.13
+passlib
+sqlalchemy
+bcrypt
+psycopg2-binary

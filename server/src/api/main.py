@@ -5,20 +5,23 @@ from fastapi.responses import JSONResponse
 from src.api.auth import router as auth_router
 import uvicorn
 import cv2
-import tempfile
 import os
 import shutil
 import uuid
 import numpy as np
-import math
+import base64
 import random 
 from src.api.recreate_logic import KolamRecreator 
 from src.api.inference import predict
-from src.api.render import render_kolam
+from src.api.render import render_kolam, reconstruct_paths
 from src.api.schemas import KolamRequest, Dot, LinePath, CurvePath
 from src.api.img_processing import detect_dots_in_image, detect_lines_and_curves
 from src.api.vector import find_similar
+from src.api.llm import llm_image, llm_prompt_for_kolam
+from src.api.llm import sd_image
 from typing import Union
+import tempfile
+import json
 
 app = FastAPI(title="Kolam AI server", version="0.1.0")
 
@@ -85,44 +88,42 @@ def create_kolam(data: KolamRequest):
 
 @app.post("/api/know-your-kolam")
 async def know_your_kolam(file: UploadFile = File(...)):
-    tmp_path = os.path.join(UPLOAD_DIR, f"temp_{uuid.uuid4()}_{file.filename}")
+    # Save uploaded file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    tmp.write(await file.read())
+    tmp.close()
+    
     try:
-        with open(tmp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        img = cv2.imread(tmp_path, cv2.IMREAD_COLOR)
+        # Load and process image
+        img = cv2.imread(tmp.name, cv2.IMREAD_COLOR)
         if img is None:
-            return JSONResponse(status_code=400, content={"error": "Could not load image"})
+            return {"error": "Could not load image"}
         
-        # --- ENHANCEMENT FOR DOT DETECTION: Applying contrast equalization ---
-        # Convert to grayscale for robust processing
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # Apply contrast enhancement (CLAHE) to handle uneven lighting/faint dots
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        enhanced_gray = clahe.apply(gray)
-        # Convert back to 3-channel BGR as detect_dots_in_image may expect it
-        enhanced_img = cv2.cvtColor(enhanced_gray, cv2.COLOR_GRAY2BGR)
+        h, w = img.shape[:2]
         
-        detected_dots = detect_dots_in_image(enhanced_img)
-        # --------------------------------------------------------------------
+        # Step 1: Detect dots in the image
+        detected_dots = detect_dots_in_image(img)
         
+        # Convert to Dot objects
         dots = [Dot(x=float(x), y=float(y)) for x, y in detected_dots]
         
-        # Use the original image for line/curve detection as it preserves color information
+        # Step 2: Detect lines and curves
         lines, curves = detect_lines_and_curves(img, detected_dots)
         
+        # Combine all paths
         all_paths = []
-        all_paths.extend(lines)
-        all_paths.extend(curves)
+        for line in lines:
+            all_paths.append(line)
+        for curve in curves:
+            all_paths.append(curve)
         
-        metrics = calculate_kolam_metrics(dots, all_paths)
-
+        # Step 3: Return formatted response that matches KolamRequest schema
         result = {
             "dots": [{"x": dot.x, "y": dot.y} for dot in dots],
-            "paths": [],
-            "metrics": metrics 
+            "paths": []
         }
         
+        # Format paths according to schema
         for path in all_paths:
             if isinstance(path, LinePath):
                 result["paths"].append({
@@ -141,10 +142,78 @@ async def know_your_kolam(file: UploadFile = File(...)):
         return result
         
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Error processing image: {str(e)}"})
+        return {"error": f"Error processing image: {str(e)}"}
+
+@app.post("/api/know-and-create-kolam")
+async def know_and_create_kolam(file: UploadFile = File(...)):
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    tmp.write(await file.read())
+    tmp.close()
+
+    try:
+        # Step 1: Load image
+        img = cv2.imread(tmp.name, cv2.IMREAD_COLOR)
+        if img is None:
+            return {"error": "Could not load image"}
+
+        # Step 2: Detect dots + paths
+        detected_dots = detect_dots_in_image(img)
+        dots = [Dot(x=float(x), y=float(y)) for x, y in detected_dots]
+        lines, curves = detect_lines_and_curves(img, detected_dots)
+
+        kolam_json = {
+            "dots": [{"x": d.x, "y": d.y} for d in dots],
+            "paths": []
+        }
+
+        for path in [*lines, *curves]:
+            if isinstance(path, LinePath):
+                kolam_json["paths"].append({
+                    "type": "line",
+                    "p1": {"x": path.p1.x, "y": path.p1.y},
+                    "p2": {"x": path.p2.x, "y": path.p2.y}
+                })
+            elif isinstance(path, CurvePath):
+                kolam_json["paths"].append({
+                    "type": "curve",
+                    "p1": {"x": path.p1.x, "y": path.p1.y},
+                    "ctrl": {"x": path.ctrl.x, "y": path.ctrl.y},
+                    "p2": {"x": path.p2.x, "y": path.p2.y}
+                })
+
+        # Step 3: Improve with LLM (safe)
+        improved_json = llm_prompt_for_kolam(kolam_json)
+
+        # Step 4: Validate and render
+        validated = KolamRequest(**improved_json)
+        output_filename = render_kolam(
+            [(dot.x, dot.y) for dot in validated.dots],
+            validated.paths
+        )
+
+        # Optional: Validate against schema
+        try:
+            validated = KolamRequest(**improved_json)
+        except Exception as e:
+            print(f"⚠️ Invalid LLM schema: {e}")
+            validated = KolamRequest(**kolam_json)
+
+        # Step 5: Render final enhanced kolam
+        output_filename = render_kolam(
+            [(dot.x, dot.y) for dot in validated.dots],
+            validated.paths
+        )
+
+        return {
+            "message": "Kolam analyzed, enhanced by LLM, and created successfully",
+            "image_url": output_filename,
+        }
+
+    except Exception as e:
+        return {"error": f"Error processing image: {str(e)}"}
+
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        os.remove(tmp.name)
 
 # -----------------------------------------------------------
 # FIXED ROUTE: /api/recreate endpoint using KolamRecreator
@@ -239,6 +308,24 @@ async def predict_image(file: UploadFile = File(...)):
     result = predict(file_path)
     os.remove(file_path)
     return {"prediction": result}
+
+@app.post("/api/llm")
+async def get_better_image_with_llm(file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    file_b64 = base64.b64encode(file_bytes).decode("utf-8")
+    result = llm_image(file_b64, mime_type=file.content_type)
+
+    return {"llmRecreate": result}
+
+@app.post("/api/stability")
+async def get_better_image_with_stability(file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    file_b64 = base64.b64encode(file_bytes).decode("utf-8")
+
+    prompt = "Make this rangoli (kolam) design more aesthetic, colorful, and traditional."
+    result = sd_image(file_b64, prompt=prompt)
+
+    return {"llmRecreate": f"/img/{result}"}
 
 @app.post("/api/search")
 async def search_similar(file: UploadFile = File(...)):
