@@ -19,6 +19,13 @@ type OperationData = {
         predictKolam?: string;
         renderedImage?: string;
         recreatedImage?: string;
+        metrics?: {
+            dot_count?: number;
+            path_count?: number;
+            symmetry_percentage?: number;
+            repetition_percentage?: number;
+            pattern_type?: string;
+        };
     };
 };
 
@@ -94,17 +101,20 @@ export default function Home() {
         mutationFn: async (file: File) => {
             const formData = new FormData();
             formData.append("file", file);
-            const res = await api.post(API_ROUTES.KOLAM.RECREATE, formData, {
+            const res = await api.post<{
+                image_url: string;
+                metrics: any;
+            }>(API_ROUTES.KOLAM.KNOW_AND_CREATE, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
-            return res.data.recreatedImage;
+            return res.data;
         },
-        onSuccess: (recreatedImage: string) => {
+        onSuccess: (data) => {
             const recreateEntry: OperationData = {
                 id: (Date.now() + 1).toString(), // Ensure unique ID
                 timestamp: Date.now() + 1,
                 type: 'recreate' as const,
-                data: { recreatedImage }
+                data: { recreatedImage: data.image_url, metrics: data.metrics }
             };
             setOperationHistory(prev => [...prev, recreateEntry]);
 
@@ -114,7 +124,8 @@ export default function Home() {
             kolams.unshift({
                 id: Date.now(),
                 title: `Recreated Kolam #${kolams.length + 1}`,
-                image: recreatedImage.startsWith("http") ? recreatedImage : `${import.meta.env.VITE_API_URL}/${recreatedImage}`
+                image: data.image_url.startsWith("http") ? data.image_url : `${import.meta.env.VITE_API_URL}/${data.image_url}`,
+                metrics: `${data.metrics}`
             });
             localStorage.setItem("userKolams", JSON.stringify(kolams));
         }
@@ -231,6 +242,23 @@ export default function Home() {
                                                 alt="Recreated kolam"
                                                 className="w-full h-auto max-h-[400px] object-contain"
                                             />
+                                        </div>
+                                        <div className="text-gray-600 mt-4">
+                                            This kolam was recreated using advanced AI techniques to ensure symmetry and clarity, based on the initial analysis.
+                                            Metrics: 
+                                            {
+                                                operation.data.metrics ? (
+                                                    <div>
+                                                        <ul className="list-disc list-inside mt-2">
+                                                            {operation.data.metrics.dot_count !== undefined && <li>Dot Count: {operation.data.metrics.dot_count}</li>}
+                                                            {operation.data.metrics.path_count !== undefined && <li>Path Count: {operation.data.metrics.path_count}</li>}
+                                                            {operation.data.metrics.symmetry_percentage !== undefined && <li>Symmetry Percentage: {operation.data.metrics.symmetry_percentage}%</li>}
+                                                            {operation.data.metrics.repetition_percentage !== undefined && <li>Repetition Percentage: {operation.data.metrics.repetition_percentage}%</li>}
+                                                            {operation.data.metrics.pattern_type && <li>Pattern Type: {operation.data.metrics.pattern_type}</li>}
+                                                        </ul>
+                                                    </div>
+                                                ) : " No metrics available."
+                                            }
                                         </div>
                                         <div className="mt-4">
                                             <a

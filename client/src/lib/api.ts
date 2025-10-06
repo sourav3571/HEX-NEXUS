@@ -12,6 +12,7 @@ export const API_ROUTES = {
     PREDICT: `${BASE_URL}/predict`,
     SEARCH: `${BASE_URL}/search`,
     RECREATE: `${BASE_URL}/recreate`, // Add this line
+    KNOW_AND_CREATE: `${BASE_URL}/know-and-create-kolam`,
   }
 } as const;
 

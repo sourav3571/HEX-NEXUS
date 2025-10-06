@@ -21,7 +21,7 @@ from src.api.llm import llm_image, llm_prompt_for_kolam
 from src.api.llm import sd_image
 from typing import Union
 import tempfile
-import json
+import hashlib
 
 app = FastAPI(title="Kolam AI server", version="0.1.0")
 
@@ -144,13 +144,26 @@ async def know_your_kolam(file: UploadFile = File(...)):
     except Exception as e:
         return {"error": f"Error processing image: {str(e)}"}
 
+cache = {}
+
 @app.post("/api/know-and-create-kolam")
 async def know_and_create_kolam(file: UploadFile = File(...)):
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    tmp.write(await file.read())
-    tmp.close()
+    # Read file content
+    content = await file.read()
+    
+    # Compute hash of file content
+    file_hash = hashlib.md5(content).hexdigest()
+    
+    # Check if this file content is already cached
+    if file_hash in cache:
+        return cache[file_hash]
 
     try:
+        # Save to temporary file (needed for OpenCV)
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        tmp.write(content)
+        tmp.close()
+
         # Step 1: Load image
         img = cv2.imread(tmp.name, cv2.IMREAD_COLOR)
         if img is None:
@@ -181,17 +194,10 @@ async def know_and_create_kolam(file: UploadFile = File(...)):
                     "p2": {"x": path.p2.x, "y": path.p2.y}
                 })
 
-        # Step 3: Improve with LLM (safe)
+        # Step 3: Improve with LLM
         improved_json = llm_prompt_for_kolam(kolam_json)
 
-        # Step 4: Validate and render
-        validated = KolamRequest(**improved_json)
-        output_filename = render_kolam(
-            [(dot.x, dot.y) for dot in validated.dots],
-            validated.paths
-        )
-
-        # Optional: Validate against schema
+        # Step 4: Validate
         try:
             validated = KolamRequest(**improved_json)
         except Exception as e:
@@ -204,16 +210,21 @@ async def know_and_create_kolam(file: UploadFile = File(...)):
             validated.paths
         )
 
-        return {
+        # Step 6: Calculate metrics
+        metrics = calculate_kolam_metrics(validated.dots, validated.paths)
+
+        # Cache the result keyed by file hash
+        cache[file_hash] = {
             "message": "Kolam analyzed, enhanced by LLM, and created successfully",
             "image_url": output_filename,
+            "metrics": metrics,
         }
+
+        return cache[file_hash]
 
     except Exception as e:
         return {"error": f"Error processing image: {str(e)}"}
 
-    finally:
-        os.remove(tmp.name)
 
 # -----------------------------------------------------------
 # FIXED ROUTE: /api/recreate endpoint using KolamRecreator
